@@ -11,6 +11,7 @@ A 2D space invaders like game written in C++11
 
 #### Building
 - Requires FSML (Simple and Fast Multimedia Library) http://www.sfml-dev.org/index.php
+- Requires GCC 4.8 or greater
 - Run build.sh to compile & link
 - Run Game to start
 
