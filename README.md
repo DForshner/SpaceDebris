@@ -1,4 +1,4 @@
-SpaceDebris!
+Space Debris!
 ===========
 
 A 2D space invaders like game written in C++14
