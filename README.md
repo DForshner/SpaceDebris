@@ -1,7 +1,7 @@
 Space Debris
 ===========
 
-A 2D space invaders like game written in C++11
+A 2D space invaders like game written in C++14
 
 #### Features
 - [X] Captures the heart pounding excitement of saving the earth from falling space junk!
