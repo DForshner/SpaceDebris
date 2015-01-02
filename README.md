@@ -10,13 +10,21 @@ A 2D space invaders like game written in C++14
 - [X] Inefficient game engine
 - [X] Works on my machine software quality
 
+#### TODO
+- [ ] Refactor into proper class per file
+- [ ] Make less boring
+- [ ] Sound?
+- [ ] Text?
+
 #### Controls
 - Left/Right - Move Player
 - Space - Fire
 - Escape - Exit
+- P - Pause
+- R - Reset
 
 #### Screenshots
-![Prototype](/prototype screenshot.png)
+![Final](/Final.png)
 
 #### Building
 - Requires FSML (Simple and Fast Multimedia Library) http://www.sfml-dev.org/index.php
