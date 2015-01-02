@@ -4,6 +4,7 @@ Space Debris
 A 2D space invaders like game written in C++11
 
 #### Features
+- [X] Captures the heart pounding excitement saving the earth from falling space junk!
 - [X] Bad 2D graphics
 - [X] Boring gameplay
 - [X] Inefficient game engine
@@ -19,3 +20,6 @@ A 2D space invaders like game written in C++11
 - Left/Right - Move Player
 - Space - Fire
 - Escape - Exit
+
+#### Screenshots
+![Prototype](/prototype screenshot.png)
