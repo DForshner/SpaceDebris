@@ -11,10 +11,9 @@ A 2D space invaders like game written in C++14
 - [X] Works on my machine software quality
 
 #### TODO
-- [ ] Refactor into proper class per file
 - [ ] Make less boring
-- [ ] Sound?
-- [ ] Text?
+- [ ] Sound? Text?
+- [ ] Refactor to have one class per file
 
 #### Controls
 - Left/Right - Move Player
