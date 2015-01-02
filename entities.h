@@ -3,8 +3,7 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
-#include <iostream>
-#include <algorithm>
+#include "math.h"
 
 class Rectangle {
   public:
@@ -21,12 +20,25 @@ class Rectangle {
     sf::RectangleShape _body;
 };
 
+class Circle {
+  public:
+    float x() const noexcept { return _body.getPosition().x; }
+    float y() const noexcept { return _body.getPosition().y; }
+    float left() const noexcept { return x() - _body.getRadius(); }
+    float right() const noexcept { return x() + _body.getRadius(); }
+    float top() const noexcept { return y() - _body.getRadius(); } // Remember sfml y coord are flipped
+    float bottom() const noexcept { return y() + _body.getRadius(); }
+  protected:
+    sf::CircleShape _body;
+};
+
 class Player : public Rectangle {
   public:
     static const sf::Color defaultColor;
     static constexpr float defaultWidth{20.f};
     static constexpr float defaultHeight{20.f};
     static constexpr float defaultVelocity {8.f};
+    static constexpr unsigned defaultCooldown{15};
 
     bool isShooting{false};
 
@@ -36,6 +48,7 @@ class Player : public Rectangle {
       _body.setFillColor(defaultColor);
       _body.setOrigin(defaultWidth / 2.f, defaultHeight / 2.f);
       _trackWidth = trackWidth;
+      _coolDown = 0;
     }
 
     void update() {
@@ -50,29 +63,30 @@ class Player : public Rectangle {
   private:
     sf::Vector2f _velocity;
     unsigned _trackWidth; 
+    unsigned _coolDown; 
 
     void processPlayerInput() {
+      // Handle moving left/right
       if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) && left() > 0) {
-        std::cout << "Left: " << x() << " / 0" << std::endl;
         _velocity.x = -defaultVelocity;
       } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) && right() < _trackWidth){
-        std::cout << "Right: " << x() << " / " << _trackWidth << std::endl;
         _velocity.x = defaultVelocity;
       } else {
         _velocity.x = 0.f;
       }
 
-      if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space)) {
-        isShooting = true;
-      } else {
+      // Handle fireing
+      if (_coolDown > 0) {
+        _coolDown--;
         isShooting = false;
+      } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space)) {
+        _coolDown = defaultCooldown;
+        isShooting = true;
       }
     }
 };
 
-//const sf::Color Player::defaultColor{sf::Color::Blue};
-
-class Ball
+class Ball : public Circle 
 {
   public:
     static const sf::Color defaultColor;
@@ -97,15 +111,7 @@ class Ball
       target.draw(_body);
     }
 
-    float x() const noexcept { return _body.getPosition().x; }
-    float y() const noexcept { return _body.getPosition().y; }
-    float left() const noexcept { return x() - _body.getRadius(); }
-    float right() const noexcept { return x() + _body.getRadius(); }
-    float top() const noexcept { return y() - _body.getRadius(); } // Remember sfml y coord are flipped
-    float bottom() const noexcept { return y() + _body.getRadius(); }
-
   private:
-    sf::CircleShape _body;
     sf::Vector2f _velocity{0.f, -defaultVelocity};
 
     // Handle ball going off screen
@@ -117,14 +123,12 @@ class Ball
     }
 };
 
-//const sf::Color Ball::defaultColor{sf::Color::White};
-
 class Brick : public Rectangle {
   public:
     static const sf::Color defaultColor;
     static constexpr float defaultWidth{80.f};
     static constexpr float defaultHeight{30.f};
-    static constexpr float defaultVelocity {10.f};
+    static constexpr float defaultVelocity {2.f};
 
     bool destroyed{false};
 
@@ -135,19 +139,42 @@ class Brick : public Rectangle {
       _body.setOrigin(defaultWidth / 2.f, defaultHeight / 2.f);
     }
 
-    void update() { }
+    void update() {
+      _body.move(_velocity);
+    }
 
     void draw(sf::RenderWindow& target) {
       target.draw(_body);
     }
 
   private:
-    sf::Vector2f _velocity;
+    sf::Vector2f _velocity{0.f, +defaultVelocity};
 };
 
-//const sf::Color Brick::defaultColor{sf::Color::Red};
+class World: public Rectangle {
+  public:
+    static const sf::Color defaultColor;
+    static constexpr float defaultWidth{800.f};
+    static constexpr float defaultHeight{30.f};
 
-double squareRoot(const double a) {
+    World(float x, float y) {
+      _body.setPosition(x, y);
+      _body.setSize({defaultWidth, defaultHeight});
+      _body.setFillColor(defaultColor);
+      _body.setOrigin(defaultWidth / 2.f, defaultHeight / 2.f);
+    }
+
+    bool destroyed{false};
+
+    void update() {
+    }
+
+    void draw(sf::RenderWindow& target) {
+      target.draw(_body);
+    }
+};
+
+inline double squareRoot(const double a) {
   double b = sqrt(a);
   if(b != b) { // nan check
     return -1.0;

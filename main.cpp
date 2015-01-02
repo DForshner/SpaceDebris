@@ -22,12 +22,22 @@ void solveBallBrickCollision(Brick& brick, Ball& ball) noexcept {
     return;
   }
   brick.destroyed = true;
+  ball.destroyed = true;
+}
+
+void solveBrickHittingWorld(Brick& brick, World& world) noexcept {
+  if (brick.bottom() >= windowHeight) {
+    brick.destroyed = true;
+    world.destroyed = true;
+  }
 }
 
 int main() {
   std::cout << "Setting Up" << std::endl;
 
-  Player player{windowWidth / 2.f, windowHeight - 50, windowHeight};
+  Player player{windowWidth / 2.f, windowHeight - World::defaultHeight - Player::defaultHeight, windowHeight};
+
+  World world{windowWidth / 2.f, windowHeight - World::defaultHeight};
 
   std::vector<Brick> bricks;
   for (int iX{0}; iX < 3; ++iX) {
@@ -41,7 +51,7 @@ int main() {
 
   std::vector<Ball> balls;
 
-  sf::RenderWindow window{{windowWidth, windowHeight}, "Wall Bowling"};
+  sf::RenderWindow window{{windowWidth, windowHeight}, "Space Debris!"};
   window.setFramerateLimit(60);
 
   std::cout << "Starting Game Loop" << std::endl;
@@ -53,17 +63,28 @@ int main() {
       break;
     }
 
+    world.update();
+
     player.update();
 
     for (auto& brick: bricks) {
       brick.update();
-      //solveBallBrickCollision(brick, ball);
     }
 
     for (auto& ball: balls) {
       ball.update();
-      //solveBallBrickCollision(brick, ball);
     }
+
+    // O(log(n^2)) :-(
+    for (auto& brick: bricks) {
+      solveBrickHittingWorld(brick, world);
+
+      for (auto& ball: balls) {
+        solveBallBrickCollision(brick, ball);
+      }
+    }
+
+    world.draw(window);
 
     player.draw(window);
 
@@ -77,7 +98,6 @@ int main() {
 
     // Handle player shooting
     if (player.isShooting) {
-        std::cout << "Shooting!" << std::endl;
         balls.emplace_back(player.x(), player.y());
     }
 
@@ -85,9 +105,13 @@ int main() {
     auto ballsToRemove = std::remove_if(balls.begin(), balls.end(), [](const Ball& ball){return ball.destroyed; });
     balls.erase(ballsToRemove, balls.end());
 
-    // Remove bricks that were destoryed (Erase-Remove Idiom)
+    // Remove debris that was destoryed (Erase-Remove Idiom)
     auto bricksToRemove = std::remove_if(bricks.begin(), bricks.end(), [](const Brick& brick){return brick.destroyed; });
     bricks.erase(bricksToRemove, bricks.end());
+
+    if (world.destroyed) {
+      break;
+    }
 
     window.display();
   }
