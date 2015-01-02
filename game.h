@@ -6,6 +6,8 @@
 #include "entities.h"
 #include <algorithm>
 #include <iostream>
+#include <random>
+#include <string>
 
 constexpr unsigned windowWidth{800};
 constexpr unsigned windowHeight{800};
@@ -21,24 +23,19 @@ class Game {
     void restartGame() {
       std::cout << "Restarting" << std::endl;
 
-      _state == GameStates::InProgress;
+      _state = GameStates::InProgress;
 
       _entityManager.clearAll();
 
       _entityManager.create<Player>(windowWidth / 2.f, windowHeight - World::defaultHeight - Player::defaultHeight, windowHeight);
       _entityManager.create<World>(windowWidth / 2.f, windowHeight - World::defaultHeight);
 
-      for (int iX{0}; iX < 3; ++iX) {
-        for (int iY{0}; iY < 3; ++iY) {
-          float x{(iX + 1) * (Debris::defaultWidth + 5)};
-          float y{(iY + 1) * (Debris::defaultHeight + 5)};
-          _entityManager.create<Debris>(10 + x, y);
-        }
-      }
+      createLargeDebris();
     }
 
     void runGameLoop() {
       while(true) {
+        _frameCounter++;
         _window.clear(sf::Color::Black);
 
         // ESC - Quit game
@@ -66,9 +63,7 @@ class Game {
           restartGame();
         }
 
-        bool restart{false};
-
-        // If game is paused don't update the entities
+        // Only update game entities if the game is not currently paused.
         if (_state == GameStates::InProgress) {
           _entityManager.updateEntities();
 
@@ -78,63 +73,124 @@ class Game {
             }
           });
 
-          _entityManager.forEach<World>([this, &restart](auto& world) {
+          _entityManager.forEach<World>([this](auto& world) {
             _entityManager.forEach<Debris>([this, &world](auto& debris) {
-              solveJunkHittingWorld(debris, world);
+              this->solveDebrisHittingWorld(debris, world);
                 _entityManager.forEach<Bullet>([this, &debris](auto& bullet) {
-                  solveBulletJunkCollision(debris, bullet);
+                  this->solveBulletDebrisCollision(debris, bullet);
                 });
             });
 
             if (world.destroyed) {
-              restart = true;
+              _state = GameStates::GameOver;
             }
           });
 
-          _entityManager.clearDestroyed();
-        }
+          if (_frameCounter % (60 * 5) == 0) {
+            createLargeDebris();
+          } else if (_frameCounter % 60 == 0) {
+            createSmallDebris();
+          }
 
-        if (restart) {
+          _entityManager.clearDestroyed();
+        } else if (_state == GameStates::GameOver) {
           restartGame();
         }
 
         _entityManager.drawEntities(_window);
+
         _window.display();
       }
     }
 
   private:
-    enum class GameStates{Paused, InProgress};
+    enum class GameStates{Paused, InProgress, GameOver};
     GameStates _state{GameStates::InProgress};
 
     bool _pausedLastFrame{false};
+
+    unsigned _frameCounter{0};
 
     sf::RenderWindow _window{{windowWidth, windowHeight}, "Space Debris!"};
 
     EntityManager _entityManager;
 
+    std::default_random_engine _positionGenerator;
+    std::uniform_int_distribution<int> _xPositionDistro{0, windowWidth};
+
+    std::default_random_engine _debrisSizeGenerator;
+    std::uniform_int_distribution<int> _debrisSizeDistro{1, 3};
+
+    // Creates a small piece of debris
+    void createSmallDebris() noexcept {
+      auto x = getRandomXPosition();
+      _entityManager.create<Debris>(x, 0, Debris::MassStates::Med);
+    }
+
+    // Creates a debris field
+    void createLargeDebris() noexcept {
+      constexpr float spacingX{2.f};
+      constexpr float spacingY{2.f};
+
+      auto numDebrisX = getRandomDebrisSize();
+      auto numDebrisY = getRandomDebrisSize();
+
+      // Get an starting point where all the bricks will fit on screen.
+      auto xLeftLimit = Debris::defaultWidth;
+      auto xRightLimit = windowWidth - (Debris::defaultWidth + spacingX) * numDebrisX;
+      auto xOffset = 0;
+      while (xOffset < xLeftLimit || xOffset > xRightLimit) {
+          xOffset = getRandomXPosition();
+      }
+
+      for (int iX{0}; iX <= numDebrisX; ++iX) {
+        for (int iY{0}; iY < numDebrisY; ++iY) {
+          float x{(iX) * (Debris::defaultWidth + spacingX)};
+          float y{(iY) * (Debris::defaultHeight + spacingY)};
+          _entityManager.create<Debris>(xOffset + x, y, Debris::MassStates::Low);
+        }
+      }
+    }
+
+    int getRandomDebrisSize() noexcept {
+      return _debrisSizeDistro(_debrisSizeGenerator);
+    }
+
+    // Returns a random x position on screen.
+    int getRandomXPosition() noexcept {
+      return _xPositionDistro(_positionGenerator);
+    }
+
+    // Return true if two entities are intersecting
+    bool isIntersecting(const auto& a, const auto& b) noexcept {
+      return a.right() >= b.left()
+        && a.left() <= b.right()
+        && a.bottom() >= b.top()
+        && a.top() <= b.bottom();
+    }
+
+    void solveDebrisHittingWorld(Debris& debris, World& world) noexcept {
+      if (debris.bottom() <= world.top()) {
+        return;
+      }
+      debris.destroyed = true;
+      --world.hitPoints;
+    }
+
+    void solveBulletDebrisCollision(Debris& debris, Bullet& bullet) noexcept {
+      if (!isIntersecting(debris, bullet)) {
+        return;
+      }
+
+      if (debris.mass == Debris::MassStates::High) {
+        debris.mass = Debris::MassStates::Med;
+        bullet.destroyed = true;
+      } else if (debris.mass == Debris::MassStates::Med) {
+        debris.mass = Debris::MassStates::Low;
+        bullet.destroyed = true;
+      } else { // debris.mass == Debris::MassStates::Low
+        debris.destroyed = true;
+        bullet.destroyed = true;
+      }
+    }
 };
-
-// Return true if two entities are intersecting
-template<typename T1, typename T2>
-bool isIntersecting(const T1& a, const T2& b) noexcept {
-  return a.right() >= b.left()
-    && a.left() <= b.right()
-    && a.bottom() >= b.top()
-    && a.top() <= b.bottom();
-}
-
-void solveBulletJunkCollision(Debris& junk, Bullet& bullet) noexcept {
-  if (!isIntersecting(junk, bullet)) {
-    return;
-  }
-  junk.destroyed = true;
-  bullet.destroyed = true;
-}
-
-void solveJunkHittingWorld(Debris& junk, World& world) noexcept {
-  if (junk.bottom() >= windowHeight) {
-    junk.destroyed = true;
-    world.destroyed = true;
-  }
-}

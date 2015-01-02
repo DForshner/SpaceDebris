@@ -4,21 +4,25 @@
 
 #include <memory>
 #include <vector>
+#include <iostream>
 #include <map>
+#include <typeinfo>
 #include <SFML/Graphics.hpp>
 #include "math.h"
 
 // Entity interface that all game entities derive from.
 class Entity {
   public:
-    // True if entity should be removed.
+    // True if entity is destroyed
     bool destroyed{false};
 
     virtual ~Entity() { }
-    virtual void update() { }
-    virtual void draw(sf::RenderWindow& target) { }
+    virtual void update() = 0;
+    virtual void draw(sf::RenderWindow& target) = 0;
 };
 
+// Responsible for managing the lifecycle of entities in the game.  
+// Handles creating, updating and removing them from memory.
 class EntityManager {
   public:
     // Create entities with constructor signature
@@ -44,6 +48,7 @@ class EntityManager {
       return *nonOwning;
     }
 
+    // Removes all destroyed entities from memory.
     void clearDestroyed() {
 
       // Remove non-owning pointers to any destroyed entities.  This is only deleting
@@ -146,7 +151,7 @@ class Player : public Entity, public Rectangle {
     static constexpr float defaultWidth{20.f};
     static constexpr float defaultHeight{20.f};
     static constexpr float defaultVelocity {8.f};
-    static constexpr unsigned defaultCooldown{15};
+    static constexpr unsigned defaultCooldown{10};
 
     bool isShooting{false};
 
@@ -231,20 +236,34 @@ class Bullet: public Entity, public Circle
 
 class Debris: public Entity, public Rectangle {
   public:
-    static const sf::Color defaultColor;
+    static const sf::Color defaultColorHighMass;
+    static const sf::Color defaultColorMedMass;
+    static const sf::Color defaultColorLowMass;
     static constexpr float defaultWidth{80.f};
     static constexpr float defaultHeight{30.f};
     static constexpr float defaultVelocity {2.f};
 
-    Debris(float x, float y) {
+    enum class MassStates{High, Med, Low};
+    MassStates mass{MassStates::Low};
+
+    Debris(float x, float y, MassStates startingMass) {
+      mass = startingMass;
+      _body.setFillColor(defaultColorLowMass);
       _body.setPosition(x, y);
       _body.setSize({defaultWidth, defaultHeight});
-      _body.setFillColor(defaultColor);
       _body.setOrigin(defaultWidth / 2.f, defaultHeight / 2.f);
     }
 
     void update() override {
       _body.move(_velocity);
+
+      if (mass == MassStates::High) {
+        _body.setFillColor(defaultColorHighMass);
+      } else if (mass == MassStates::Med) {
+        _body.setFillColor(defaultColorMedMass);
+      } else { // mass == MassStates::Low
+        _body.setFillColor(defaultColorLowMass);
+      }
     }
 
     void draw(sf::RenderWindow& target) override {
@@ -257,18 +276,33 @@ class Debris: public Entity, public Rectangle {
 
 class World: public Entity, public Rectangle {
   public:
-    static const sf::Color defaultColor;
+    static const sf::Color defaultColorLowDamage;
+    static const sf::Color defaultColorHighDamage;
     static constexpr float defaultWidth{800.f};
     static constexpr float defaultHeight{30.f};
+    static constexpr int defaultHitPoints{10};
+
+    int hitPoints{defaultHitPoints};
+    int hitPointsLastFrame{defaultHitPoints};
 
     World(float x, float y) {
       _body.setPosition(x, y);
       _body.setSize({defaultWidth, defaultHeight});
-      _body.setFillColor(defaultColor);
+      _body.setFillColor(defaultColorLowDamage);
       _body.setOrigin(defaultWidth / 2.f, defaultHeight / 2.f);
     }
 
-    void update() override { }
+    void update() override {
+      if (hitPoints == 0) {
+        destroyed = true;
+      } else if (hitPoints != hitPointsLastFrame) {
+        auto intensity = ((float)hitPoints / (float)defaultHitPoints) * 255;
+        std::cout << "Int: " << intensity << "/255" << std::endl;
+        _body.setFillColor({0, 0, 255, sf::Uint8(intensity)});
+      }
+
+      hitPointsLastFrame = hitPoints;
+    }
 
     void draw(sf::RenderWindow& target) override {
       target.draw(_body);

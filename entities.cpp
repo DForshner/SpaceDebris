@@ -9,6 +9,9 @@ const sf::Color Player::defaultColor{sf::Color::White};
 
 const sf::Color Bullet::defaultColor{sf::Color::White};
 
-const sf::Color Debris::defaultColor{sf::Color::Red};
+const sf::Color Debris::defaultColorHighMass{255, 0, 0, 255};
+const sf::Color Debris::defaultColorMedMass{255, 0, 0, 200};
+const sf::Color Debris::defaultColorLowMass{255, 0, 0, 100};
 
-const sf::Color World::defaultColor{sf::Color::Blue};
+const sf::Color World::defaultColorLowDamage{0, 0, 255, 255};
+const sf::Color World::defaultColorHighDamage{0, 0, 255, 100};
