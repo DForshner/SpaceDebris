@@ -18,14 +18,9 @@ A 2D space invaders like game written in C++11
 #### Screenshots
 ![Prototype](/prototype screenshot.png)
 
-#### Building Game
+#### Building
 - Requires FSML (Simple and Fast Multimedia Library) http://www.sfml-dev.org/index.php
-- Requires GCC 4.8 or greater
-- Run build.sh to compile & link
-- Run spacedebrisgame to start
-
-#### Building Tests
 - Requires GTest
-- Requires GCC 4.8 or greater
-- Run buildtests.sh to compile & link
-- Run runtests to run unittests
+- Requires GCC 4.9 or greater
+- Run build.sh to compile & link game
+- Run buildtests.sh to compile & link tests
