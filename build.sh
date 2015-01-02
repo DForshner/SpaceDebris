@@ -1,4 +1,4 @@
-# Quick and dirty build script
+# builds game
 
 # Compile
 g++ -std=c++1y -c main.cpp entities.cpp

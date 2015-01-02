@@ -1,3 +1,5 @@
+# Builds tests
+
 # Compile
 g++ -std=c++1y -c tests.cpp
 

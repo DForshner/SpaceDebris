@@ -2,8 +2,116 @@
 
 #pragma once
 
+#include <memory>
+#include <vector>
+#include <map>
 #include <SFML/Graphics.hpp>
 #include "math.h"
+
+// Entity interface that all game entities derive from.
+class Entity {
+  public:
+    // True if entity should be removed.
+    bool destroyed{false};
+
+    virtual ~Entity() { }
+    virtual void update() { }
+    virtual void draw(sf::RenderWindow& target) { }
+};
+
+class EntityManager {
+  public:
+    // Create entities with constructor signature
+    // 'T' game object type
+    // 'TArgs' constructor arguments types as template parameters.
+    // Returns reference to heap allocated object.
+    template<typename T, typename... TArgs>
+    T& create(TArgs&&... mArgs) {
+      static_assert(std::is_base_of<Entity, T>::value,
+          "T must be derived from type 'Entity'");
+
+      // Use perfect forwarding for T's constructor arguments.
+      auto owning(std::make_unique<T>(std::forward<TArgs>(mArgs)...));
+
+      // Add a non-owning pointer to instance in the entity lookup table.
+      auto nonOwning(owning.get());
+      auto key = typeid(T).hash_code(); // Bug: hash_code() will not guarantee unique value per type.
+      _entityLookup[key].emplace_back(nonOwning);
+
+      // Move the unique pointer to the entity store.
+      _entities.emplace_back(std::move(owning));
+
+      return *nonOwning;
+    }
+
+    void clearDestroyed() {
+
+      // Remove non-owning pointers to any destroyed entities.  This is only deleting
+      // the non-owning pointer stored in the lookup not the heap allocated entity.
+      for(auto& pair : _entityLookup) {
+        auto& entities(pair.second);
+
+        entities.erase( // Note: Erase-remove idiom
+            std::remove_if(std::begin(entities), std::end(entities),
+              [](const auto entity){ return entity->destroyed; }), // Note: C++14 generic lambda
+            std::end(entities)
+        );
+      }
+
+      // Delete the smart pointer that holds the heap allocated entity
+      // which will automatically free the memory.
+      _entities.erase( // Note: Erase-remove idiom
+          std::remove_if(std::begin(_entities), std::end(_entities),
+            [](const auto& entity){ return entity->destroyed; }), // Note C++14 generic lambda
+          std::end(_entities)
+      );
+    }
+
+    // Destroy all entities
+    void clearAll() {
+      _entityLookup.clear();
+      _entities.clear(); // Deletes smart pointers which will auto free memory.
+    }
+
+    // Returns all instances of this entity type.
+    template<typename T> // Template method
+    auto& find() { // Note: C++14 automatic function return type deduction
+      auto key = typeid(T).hash_code();
+      return _entityLookup[key];
+    }
+
+    // Apply arbitary code on each entity of a type
+    template<typename T, typename TFunc>
+    void forEach(const TFunc& func) {
+      auto& entities(find<T>());
+
+      for(auto entity : entities) {
+        // Cast the instance pointer to its "real" type.
+        auto instance = reinterpret_cast<T*>(entity);
+        // Call function with dereferenced casted pointer.
+        func(*instance);
+      }
+    }
+
+  void updateEntities() {
+    for (auto& entity : _entities) {
+      entity->update();
+    }
+  }
+
+  void drawEntities(sf::RenderWindow& target) {
+    for (auto& entity : _entities) {
+      entity->draw(target);
+    }
+  }
+
+  private:
+    std::vector<std::unique_ptr<Entity>> _entities;
+
+    // A map of entity 'typeid' hashes to a vector of non-owning pointers
+    // to instances of that type.
+    std::map<std::size_t, std::vector<Entity*>> _entityLookup;
+};
 
 class Rectangle {
   public:
@@ -32,7 +140,7 @@ class Circle {
     sf::CircleShape _body;
 };
 
-class Player : public Rectangle {
+class Player : public Entity, public Rectangle {
   public:
     static const sf::Color defaultColor;
     static constexpr float defaultWidth{20.f};
@@ -51,12 +159,12 @@ class Player : public Rectangle {
       _coolDown = 0;
     }
 
-    void update() {
+    void update() override { // Note: C++11 override ensures overriding a virtual method.
       processPlayerInput();
       _body.move(_velocity);
     }
 
-    void draw(sf::RenderWindow& target) {
+    void draw(sf::RenderWindow& target) override { // Note: C++11 override ensures overriding a virtual method.
       target.draw(_body);
     }
 
@@ -86,35 +194,33 @@ class Player : public Rectangle {
     }
 };
 
-class Ball : public Circle 
+class Bullet: public Entity, public Circle
 {
   public:
     static const sf::Color defaultColor;
     static constexpr float defaultRadius{5.f};
     static constexpr float defaultVelocity{10.f};
 
-    Ball(float x, float y) {
+    Bullet(float x, float y) {
       _body.setPosition(x, y);
       _body.setRadius(defaultRadius);
       _body.setFillColor(defaultColor);
       _body.setOrigin(defaultRadius, defaultRadius);
     }
 
-    bool destroyed{false};
-
-    void update() {
+    void update() override { // Note: override ensures overriding a virtual method.
       _body.move(_velocity);
       solveOffScreen();
     }
 
-    void draw(sf::RenderWindow& target) {
+    void draw(sf::RenderWindow& target) override { // Note: override ensures overriding a virtual method.
       target.draw(_body);
     }
 
   private:
     sf::Vector2f _velocity{0.f, -defaultVelocity};
 
-    // Handle ball going off screen
+    // Handle bullet going off screen
     void solveOffScreen() noexcept {
       if (top() < 0) {
         _velocity.y = 0.f;
@@ -123,27 +229,25 @@ class Ball : public Circle
     }
 };
 
-class Brick : public Rectangle {
+class Debris: public Entity, public Rectangle {
   public:
     static const sf::Color defaultColor;
     static constexpr float defaultWidth{80.f};
     static constexpr float defaultHeight{30.f};
     static constexpr float defaultVelocity {2.f};
 
-    bool destroyed{false};
-
-    Brick(float x, float y) {
+    Debris(float x, float y) {
       _body.setPosition(x, y);
       _body.setSize({defaultWidth, defaultHeight});
       _body.setFillColor(defaultColor);
       _body.setOrigin(defaultWidth / 2.f, defaultHeight / 2.f);
     }
 
-    void update() {
+    void update() override {
       _body.move(_velocity);
     }
 
-    void draw(sf::RenderWindow& target) {
+    void draw(sf::RenderWindow& target) override {
       target.draw(_body);
     }
 
@@ -151,7 +255,7 @@ class Brick : public Rectangle {
     sf::Vector2f _velocity{0.f, +defaultVelocity};
 };
 
-class World: public Rectangle {
+class World: public Entity, public Rectangle {
   public:
     static const sf::Color defaultColor;
     static constexpr float defaultWidth{800.f};
@@ -164,12 +268,9 @@ class World: public Rectangle {
       _body.setOrigin(defaultWidth / 2.f, defaultHeight / 2.f);
     }
 
-    bool destroyed{false};
+    void update() override { }
 
-    void update() {
-    }
-
-    void draw(sf::RenderWindow& target) {
+    void draw(sf::RenderWindow& target) override {
       target.draw(_body);
     }
 };

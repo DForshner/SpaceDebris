@@ -7,8 +7,8 @@
 
 const sf::Color Player::defaultColor{sf::Color::White};
 
-const sf::Color Ball::defaultColor{sf::Color::White};
+const sf::Color Bullet::defaultColor{sf::Color::White};
 
-const sf::Color Brick::defaultColor{sf::Color::Red};
+const sf::Color Debris::defaultColor{sf::Color::Red};
 
 const sf::Color World::defaultColor{sf::Color::Blue};
