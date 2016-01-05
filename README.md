@@ -3,6 +3,9 @@ Space Debris!
 
 A 2D space invaders like game written in C++14
 
+#### Screenshots
+![Final](/Final.png)
+
 #### Features
 - [X] Captures the heart pounding excitement of saving the earth from falling space junk!
 - [X] Bad 2D graphics
@@ -21,9 +24,6 @@ A 2D space invaders like game written in C++14
 - Escape - Exit
 - P - Pause
 - R - Reset
-
-#### Screenshots
-![Final](/Final.png)
 
 #### Building
 - Requires FSML (Simple and Fast Multimedia Library) http://www.sfml-dev.org/index.php
